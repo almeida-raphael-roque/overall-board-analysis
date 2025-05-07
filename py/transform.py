@@ -17,9 +17,12 @@ logging.basicConfig(
 
 class Transform:
         
-        def board_status_treatment(self, df, df_conf, status_filter_list):
+        def board_status_treatment(self, df, df_conf):
 
             try:
+                # CRIANDO LISTA PARA IDENTIFICAR POSSÍVEIS REATIVAÇÕES NO BOARD STATUS TREATMENT
+                status_filter_list = ['CANCELADO', 'CANCELADA', 'FINALIZADO', 'FINALIZADA', 'NAO RENOVADO'] 
+
                 if df is None or df.empty:
                     logging.info('\n ----------------------------------------------------------------------------------')
                     logging.info('DataFrame vazio, retornando DataFrame vazio')
@@ -92,34 +95,27 @@ class Transform:
                 logging.info(f'Falha no tratamento de status das placas ativadas: {str(e)}')
                 return df    
 
-        def transforming_files(self, df_ativacoes, df_cancelamentos, df_canc_parciais, df_conferencia):
+        def transforming_files(self, df_ativacoes, df_cancelamentos, df_conferencia):
 
-
-            # DEFININDO DATA DE INICIO DA CAMPANHA E CRIANDO DATAFRAME COM TODAS AS DATAS DE CAMPANHA
+            # DEFININDO DATAS
             today = dt.date.today()
             yesterday = today - dt.timedelta(days=1)
             last_friday = today - dt.timedelta(days=3)
 
-
-            ################################################################################################################
-
-
-            df_ativacoes['data_ativacao_beneficio'] = pd.to_datetime(df_ativacoes['data_ativacao_beneficio']).dt.date
-            df_ativacoes['beneficio'] = df_ativacoes['beneficio'].replace('REPARAÇÃO OU REPOSIÇÃO DO VEÍCULO', 'CASCO (VEÍCULO)').replace('REPARAÇÃO OU REPOSIÇÃO DO (SEMI)REBOQUE', 'CASCO (R/SR)').replace('REPARAÇÃO OU REPOSIÇÃO DO COMPLEMENTO', 'CASCO (COMPLEMENTO)')
-
-            df_conferencia['beneficio'] = df_conferencia['beneficio'].replace('REPARAÇÃO OU REPOSIÇÃO DO VEÍCULO', 'CASCO (VEÍCULO)').replace('REPARAÇÃO OU REPOSIÇÃO DO (SEMI)REBOQUE', 'CASCO (R/SR)').replace('REPARAÇÃO OU REPOSIÇÃO DO COMPLEMENTO', 'CASCO (COMPLEMENTO)')
-
-            ################################################################################################################
-
-            # SELECIONANDO APENAS AS ATIVAÇÕES CORRESPONDENTES AOS BENEFICIOS 'CASCO' / 'TERCEIRO' POR UM REGEX PADRÃO
+            #TRATANDO A NOMENCLATURA DOS BENEFÍCIOS, ADICIONANDO COLUNA DE MIGRAÇÃO, FILTRANDO POR 'CASCO'/'TERCEIRO'
             try:
-                padrao_beneficio = '(CASCO|TERCEIRO)'
-                df_ativacoes = df_ativacoes.loc[df_ativacoes['beneficio'].str.contains(padrao_beneficio, regex=True)]
+                df_ativacoes['data_ativacao_beneficio'] = pd.to_datetime(df_ativacoes['data_ativacao_beneficio']).dt.date
+                df_ativacoes['beneficio'] = df_ativacoes['beneficio'].replace('REPARAÇÃO OU REPOSIÇÃO DO VEÍCULO', 'CASCO (VEÍCULO)').replace('REPARAÇÃO OU REPOSIÇÃO DO (SEMI)REBOQUE', 'CASCO (R/SR)').replace('REPARAÇÃO OU REPOSIÇÃO DO COMPLEMENTO', 'CASCO (COMPLEMENTO)')
+                df_ativacoes['migration_from'] = np.nan
+                df_ativacoes = df_ativacoes.loc[df_ativacoes['beneficio'].str.contains('(CASCO|TERCEIRO)', regex=True)]
+
+                df_conferencia['beneficio'] = df_conferencia['beneficio'].replace('REPARAÇÃO OU REPOSIÇÃO DO VEÍCULO', 'CASCO (VEÍCULO)').replace('REPARAÇÃO OU REPOSIÇÃO DO (SEMI)REBOQUE', 'CASCO (R/SR)').replace('REPARAÇÃO OU REPOSIÇÃO DO COMPLEMENTO', 'CASCO (COMPLEMENTO)')
+                
             except Exception as e:
                 logging.info('\n ----------------------------------------------------------------------------------')  
                 logging.info(f'Falha ao filtrar dados de cancelamentos referente ao dia anterior: {e}')
 
-            # FILTRANDO OS DADOS PELA DATA DE CANCELAMENTO / DATA DE ATUALIZAÇÃO, E ORDENANDO OS DADOS NO DATAFRAME PELAS COLUNAS DE DATA
+            # SELECIONANDO DADOS DE CANCELAMENTO DO DIA ANTERIOR (OU DESDE SEXTA) E ORDENANDO POR DATA
             try:
                 df_cancelamentos['data_cancelamento'] = pd.to_datetime(df_cancelamentos['data_cancelamento']).dt.date
                 if today.weekday() == 0:
@@ -128,53 +124,18 @@ class Transform:
                     df_cancelamentos = df_cancelamentos[df_cancelamentos['data_cancelamento'] == yesterday]
                     
                 df_cancelamentos = df_cancelamentos.sort_values(by='data_cancelamento', ascending=True)
-
-                df_canc_parciais['data_atualizacao'] = pd.to_datetime(df_canc_parciais['data_atualizacao']).dt.date
-                if today.weekday() == 0:
-                    df_canc_parciais = df_canc_parciais[df_canc_parciais['data_atualizacao'].between(last_friday, today)]
-                else:
-                    df_canc_parciais = df_canc_parciais[df_canc_parciais['data_atualizacao'] == yesterday]
-                
-                df_canc_parciais = df_canc_parciais.sort_values(by='data_atualizacao', ascending=True)
                 
             except Exception as e:
                 logging.info('\n ----------------------------------------------------------------------------------')  
                 logging.info(f'Falha ao filtrar dados de cancelamentos referente ao dia anterior: {e}')
-
-            # CRIANDO COLUNA DE MIGRAÇÃO (MIGRATION_FROM) E DEFININDO FILTRO DE STATUS PARA TRATAMENTO DE DADOS DA CAMPANHA
-            try:
-                df_ativacoes['migration_from'] = np.nan
-                # CRIANDO LISTA PARA IDENTIFICAR POSSÍVEIS REATIVAÇÕES NO BOARD STATUS TREATMENT
-                status_filter_list = ['CANCELADO', 'CANCELADA', 'FINALIZADO', 'FINALIZADA', 'NAO RENOVADO']
-            except Exception as e:
-                logging.info('\n ----------------------------------------------------------------------------------')
-                print(f'Falha na ciração das colunas de migração e definição de filtro de status: {e}')
-
-            # GERANDO DATAFRAME FINAL PARA A CAMPANHA RANKING ATIVAÇOES
-            try:
-                if not df_ativacoes.empty:
-                    if today.weekday() == 0:
-                        df_final = df_ativacoes[df_ativacoes['data_ativacao_beneficio'].between(last_friday, today)]
-                    else:
-                        df_final = df_ativacoes[df_ativacoes['data_ativacao_beneficio'] == yesterday]
-                else:
-                    df_final = pd.DataFrame()
-                    logging.info('\n ----------------------------------------------------------------------------------')
-                    logging.info(f'Nenhum registro de ativação encontrado')
-
-            except Exception as e:
-                logging.info('\n ----------------------------------------------------------------------------------')
-                logging.info(f'Falha ao atualizar placas: {e}')
-
-            #####################################################################################################################
          
             try:
-                # PEGANDO DADOS DE ATIVAÇÃO DO DIA ANTERIOR
+                # SELECIONANDO DADOS DE ATIVAÇÃO DO DIA ANTERIOR (OU DESDE SEXTA), TRATANDO E CONCATENANDO COM O RESTANTE DOS DIAS
                 if not df_ativacoes.empty:
-                    df_ativos_menos_ontem = df_ativacoes[~(df_ativacoes['data_ativacao_beneficio'] == yesterday)]
-                    df_ativos_dia_anterior = df_ativacoes[df_ativacoes['data_ativacao_beneficio'] == yesterday]
-                    df_ativacoes_dia_anterior_tratado = self.board_status_treatment(df=df_ativos_dia_anterior, df_conf=df_conferencia, status_filter_list=status_filter_list)
-                    df_ativacoes_atualizado = pd.concat([df_ativos_menos_ontem, df_ativacoes_dia_anterior_tratado])
+                    df_ativacoes_menos_ontem = df_ativacoes[~(df_ativacoes['data_ativacao_beneficio'] == yesterday)]
+                    df_ativacoes_dia_anterior = df_ativacoes[df_ativacoes['data_ativacao_beneficio'] == yesterday]
+                    df_ativacoes_dia_anterior_tratado = self.board_status_treatment(df=df_ativacoes_dia_anterior, df_conf=df_conferencia)
+                    df_ativacoes_atualizado = pd.concat([df_ativacoes_menos_ontem, df_ativacoes_dia_anterior_tratado])
                     
                     logging.info('\n ----------------------------------------------------------------------------------')
                     logging.info(f'Número de registros ativos na carteira tratado com os dados do dia anterior.')
@@ -183,42 +144,20 @@ class Transform:
                 logging.info('\n ----------------------------------------------------------------------------------')
                 logging.info(f'Falha ao incluir registros ativos referente ao dia anterior na contagem . Revise o código: {e}')
 
-            #####################################################################################################################
-
-            # CRIANDO DATAFRAMES FINAIS: ATIVAÇÕES E CANCELAMENTOS
-            try:
-                # APLICANDO FUNÇÃO DE TRATAMENTO DE STATUS DAS PLACAS ATIVADAS
-                df_ativacoes_dia_anterior = self.board_status_treatment(df=df_final, df_conf=df_conferencia, status_filter_list=status_filter_list)
-                df_ativacoes_dia_anterior = df_ativacoes_dia_anterior.sort_values(by='data_ativacao_beneficio', ascending=True)
-                
-                # DEFININDO COLUNAS QUE SERÃO UTILIZADAS NOS DATAFRAMES FINAIS
-                df_ativacoes_dia_anterior = df_ativacoes_dia_anterior[['placa', 'chassi', 'id_placa', 'id_veiculo', 'id_carroceria', 'matricula', 'conjunto', 'unidade', 'consultor', 'status', 
-                    'cliente', 'data', 'data_ativacao', 'suporte', 'data_filtro', 'empresa', 'migration_from', 'coverage', 'beneficio', 'categoria', 'tipo_categoria', 'data_ativacao_beneficio', 'status_beneficio', 'data_atualizacao']]
+            # ÚLTIMO TRATAMENTO DO DATAFRAME DE ATIVAÇÃO
+            try: 
+                df_final_ativacoes = df_final_ativacoes.drop_duplicates(subset='chassi') 
                 df_final_ativacoes = df_ativacoes_atualizado[[
                     'placa', 'chassi', 'id_placa', 'id_veiculo', 'id_carroceria', 'matricula', 'conjunto', 'unidade', 'consultor', 'status_beneficio', 
                     'cliente', 'data', 'data_ativacao_beneficio', 'suporte', 'data_filtro', 'empresa', 'migration_from'
                 ]]
 
                 logging.info('\n ----------------------------------------------------------------------------------')
-                logging.info(f'Processo de Concatenação de Dataframes realizado com sucesso!')
+                logging.info(f'Processo final de tratamento de dataframe de ativação realizado com sucesso!')
 
             except Exception as e:
                 logging.info('\n ----------------------------------------------------------------------------------')
-                print(f'Falha ao unir os dataframes: {e}')
-
-
-            try:
-
-                df_final_ativacoes = df_final_ativacoes.drop_duplicates(subset='chassi')
-
-
-                logging.info('\n ----------------------------------------------------------------------------------')
-                logging.info(f'Número de registros ativos tratado e corrigido com sucesso.')
-
-            except Exception as e:
-
-                logging.info('\n ----------------------------------------------------------------------------------')
-                logging.info(f'Falha ao tratar e corrigir número de registros ativos. Revise o código: {e}')
+                print(f'Falha ao tratar o dataframe de ativação: {e}')
 
             # TRATANDO DADOS NULOS NOS DATAFRAMES
             try: 
@@ -255,57 +194,6 @@ class Transform:
                 df_cancelamentos['data_filtro'] = df_cancelamentos['data_filtro'].fillna(pd.Timestamp('1900-01-01'))
                 df_cancelamentos['empresa'] = df_cancelamentos['empresa'].fillna('NULL')
 
-
-                df_ativacoes_dia_anterior['placa'] = df_ativacoes_dia_anterior['placa'].fillna('SEM-PLACA')
-                df_ativacoes_dia_anterior['chassi'] = df_ativacoes_dia_anterior['chassi'].fillna('NULL')
-                df_ativacoes_dia_anterior['id_placa'] = df_ativacoes_dia_anterior['id_placa'].fillna(0)
-                df_ativacoes_dia_anterior['id_veiculo'] = df_ativacoes_dia_anterior['id_veiculo'].fillna(0)
-                df_ativacoes_dia_anterior['id_carroceria'] = df_ativacoes_dia_anterior['id_carroceria'].fillna(0)
-                df_ativacoes_dia_anterior['matricula'] = df_ativacoes_dia_anterior['matricula'].fillna(0)
-                df_ativacoes_dia_anterior['conjunto'] = df_ativacoes_dia_anterior['conjunto'].fillna(0)
-                df_ativacoes_dia_anterior['unidade'] = df_ativacoes_dia_anterior['unidade'].fillna('NULL')
-                df_ativacoes_dia_anterior['consultor'] = df_ativacoes_dia_anterior['consultor'].fillna('NULL')
-                df_ativacoes_dia_anterior['status'] = df_ativacoes_dia_anterior['status'].fillna('NULL')
-                df_ativacoes_dia_anterior['cliente'] = df_ativacoes_dia_anterior['cliente'].fillna('NULL')
-                df_ativacoes_dia_anterior['data'] = df_ativacoes_dia_anterior['data'].fillna(pd.Timestamp('1900-01-01'))
-                df_ativacoes_dia_anterior['data_ativacao'] = df_ativacoes_dia_anterior['data_ativacao'].fillna(pd.Timestamp('1900-01-01'))
-                df_ativacoes_dia_anterior['suporte'] = df_ativacoes_dia_anterior['suporte'].fillna('NULL')
-                df_ativacoes_dia_anterior['data_filtro'] = df_ativacoes_dia_anterior['data_filtro'].fillna(pd.Timestamp('1900-01-01'))
-                df_ativacoes_dia_anterior['empresa'] = df_ativacoes_dia_anterior['empresa'].fillna('NULL')
-                df_ativacoes_dia_anterior['migration_from'] = df_ativacoes_dia_anterior['migration_from'].fillna('NULL')
-                df_ativacoes_dia_anterior['coverage'] = df_ativacoes_dia_anterior['coverage'].fillna(0)
-                df_ativacoes_dia_anterior['beneficio'] = df_ativacoes_dia_anterior['beneficio'].fillna('NULL')
-                df_ativacoes_dia_anterior['categoria'] = df_ativacoes_dia_anterior['categoria'].fillna('NULL')
-                df_ativacoes_dia_anterior['tipo_categoria'] = df_ativacoes_dia_anterior['tipo_categoria'].fillna('NULL')
-                df_ativacoes_dia_anterior['data_ativacao_beneficio'] = df_ativacoes_dia_anterior['data_ativacao_beneficio'].fillna(pd.Timestamp('1900-01-01'))
-                df_ativacoes_dia_anterior['status_beneficio'] = df_ativacoes_dia_anterior['status_beneficio'].fillna('NULL')
-                df_ativacoes_dia_anterior['data_atualizacao'] = df_ativacoes_dia_anterior['data_atualizacao'].fillna(pd.Timestamp('1900-01-01'))
-
-
-                df_canc_parciais['placa'] = df_canc_parciais['placa'].fillna('SEM-PLACA')
-                df_canc_parciais['chassi'] = df_canc_parciais['chassi'].fillna('NULL')
-                df_canc_parciais['id_placa'] = df_canc_parciais['id_placa'].fillna(0)
-                df_canc_parciais['id_veiculo'] = df_canc_parciais['id_veiculo'].fillna(0)
-                df_canc_parciais['id_carroceria'] = df_canc_parciais['id_carroceria'].fillna(0)
-                df_canc_parciais['matricula'] = df_canc_parciais['matricula'].fillna(0)
-                df_canc_parciais['conjunto'] = df_canc_parciais['conjunto'].fillna(0)
-                df_canc_parciais['unidade'] = df_canc_parciais['unidade'].fillna('NULL')
-                df_canc_parciais['consultor'] = df_canc_parciais['consultor'].fillna('NULL')
-                df_canc_parciais['status'] = df_canc_parciais['status'].fillna('NULL')
-                df_canc_parciais['cliente'] = df_canc_parciais['cliente'].fillna('NULL')
-                df_canc_parciais['data'] = df_canc_parciais['data'].fillna(pd.Timestamp('1900-01-01'))
-                df_canc_parciais['data_ativacao'] = df_canc_parciais['data_ativacao'].fillna(pd.Timestamp('1900-01-01'))
-                df_canc_parciais['suporte'] = df_canc_parciais['suporte'].fillna('NULL')
-                df_canc_parciais['data_filtro'] = df_canc_parciais['data_filtro'].fillna(pd.Timestamp('1900-01-01'))
-                df_canc_parciais['empresa'] = df_canc_parciais['empresa'].fillna('NULL')
-                df_canc_parciais['coverage'] = df_canc_parciais['coverage'].fillna(0)
-                df_canc_parciais['beneficio'] = df_canc_parciais['beneficio'].fillna('NULL')
-                df_canc_parciais['categoria'] = df_canc_parciais['categoria'].fillna('NULL')
-                df_canc_parciais['tipo_categoria'] = df_canc_parciais['tipo_categoria'].fillna('NULL')
-                df_canc_parciais['data_ativacao_beneficio'] = df_canc_parciais['data_ativacao_beneficio'].fillna(pd.Timestamp('1900-01-01'))
-                df_canc_parciais['status_beneficio'] = df_canc_parciais['status_beneficio'].fillna('NULL')
-                df_canc_parciais['data_atualizacao'] = df_canc_parciais['data_atualizacao'].fillna(pd.Timestamp('1900-01-01'))
-
                 logging.info('\n ----------------------------------------------------------------------------------')
                 logging.info('\n Processo de Transformacao de Dados concluido com sucesso!')
 
@@ -313,12 +201,5 @@ class Transform:
                 logging.info('\n ----------------------------------------------------------------------------------')
                 logging.info(f'Falha ao realizar tratamento de dados: {e}')
 
-            return df_final_ativacoes, df_cancelamentos, df_canc_parciais, df_ativacoes_dia_anterior
+            return df_final_ativacoes, df_cancelamentos
 
-
-#return df_final_ativacoes, df_cancelamentos, df_canc_parciais, df_ativacoes_dia_anterior
-
-        
-# os tratamentos do campanha ranking aqui ele pega os do dia anterior e se segunda ele pega sexta, ordena por data_ativacao_beneficio e escolhe colunas
-
-# o ativações geral ele cria um do dia anterior normal trata ele no board status e concatena ele com os ativos dos outros dias (estes sem tratamento)

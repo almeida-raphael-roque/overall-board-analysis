@@ -86,24 +86,3 @@ class Extract:
             logging.info('\n ----------------------------------------------------------------------------------')
             logging.info(f'\n Falha ao Extrair relatorio conferência: {e}')
 
-    # FUNÇÃO DE EXTRAÇÃO DE DADOS DE: CANCELAMENTOS PARCIAIS
-    def extract_canc_parciais(self): #df_canc_parciais
-
-            try:
-
-                dir_query = os.path.join(self.path,'sql', 'all_boards_CANCELAMENTOS_PARCIAIS.sql')
-
-                with open(dir_query, 'r') as file:
-                    query = file.read()
-
-                df_canc_parciais = awr.athena.read_sql_query(query, database='silver')
-
-                logging.info('\n ----------------------------------------------------------------------------------')
-                logging.info('\n Relatorio cancelamentos parciais  - Dados Extraidos com sucesso!')
-
-                return df_canc_parciais
-
-            except Exception as e:
-
-                logging.info('\n ----------------------------------------------------------------------------------')
-                logging.info(f'\n Falha ao Extrair relatorio cancelamentos parciais (Stcoop): {e}')
