@@ -97,10 +97,11 @@ class Transform:
 
         def transforming_files(self, df_ativacoes, df_cancelamentos, df_conferencia):
 
-            # DEFININDO DATAS
+            # DEFININDO DATAS E INICIALIZANDO DATAFRAMES FINAIS
             today = dt.date.today()
             yesterday = today - dt.timedelta(days=1)
             last_friday = today - dt.timedelta(days=3)
+            df_final_ativacoes = pd.DataFrame()
 
             #TRATANDO A NOMENCLATURA DOS BENEFÍCIOS, ADICIONANDO COLUNA DE MIGRAÇÃO, FILTRANDO POR 'CASCO'/'TERCEIRO'
             try:
@@ -146,12 +147,13 @@ class Transform:
 
             # ÚLTIMO TRATAMENTO DO DATAFRAME DE ATIVAÇÃO
             try: 
-                df_final_ativacoes = df_final_ativacoes.drop_duplicates(subset='chassi') 
+                
                 df_final_ativacoes = df_ativacoes_atualizado[[
                     'placa', 'chassi', 'id_placa', 'id_veiculo', 'id_carroceria', 'matricula', 'conjunto', 'unidade', 'consultor', 'status_beneficio', 
                     'cliente', 'data', 'data_ativacao_beneficio', 'suporte', 'data_filtro', 'empresa', 'migration_from'
                 ]]
-
+                df_final_ativacoes = df_final_ativacoes.drop_duplicates(subset='chassi') 
+                
                 logging.info('\n ----------------------------------------------------------------------------------')
                 logging.info(f'Processo final de tratamento de dataframe de ativação realizado com sucesso!')
 
