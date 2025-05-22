@@ -100,7 +100,7 @@ class Transform:
             # DEFININDO DATAS E INICIALIZANDO DATAFRAMES FINAIS
             today = dt.date.today()
             yesterday = today - dt.timedelta(days=1)
-            last_friday = today - dt.timedelta(days=3)
+            friday = today - dt.timedelta(days=3)
             df_final_ativacoes = pd.DataFrame()
 
             #TRATANDO A NOMENCLATURA DOS BENEFÍCIOS, ADICIONANDO COLUNA DE MIGRAÇÃO, FILTRANDO POR 'CASCO'/'TERCEIRO'
@@ -120,7 +120,7 @@ class Transform:
             try:
                 df_cancelamentos['data_cancelamento'] = pd.to_datetime(df_cancelamentos['data_cancelamento']).dt.date
                 if today.weekday() == 0:
-                    df_cancelamentos = df_cancelamentos[df_cancelamentos['data_cancelamento'].between(last_friday, today)]
+                    df_cancelamentos = df_cancelamentos[df_cancelamentos['data_cancelamento'].between(friday, today)]
                 else:
                     df_cancelamentos = df_cancelamentos[df_cancelamentos['data_cancelamento'] == yesterday]
                     
@@ -133,8 +133,18 @@ class Transform:
             try:
                 # SELECIONANDO DADOS DE ATIVAÇÃO DO DIA ANTERIOR (OU DESDE SEXTA), TRATANDO E CONCATENANDO COM O RESTANTE DOS DIAS
                 if not df_ativacoes.empty:
-                    df_ativacoes_menos_ontem = df_ativacoes[~(df_ativacoes['data_ativacao_beneficio'] == yesterday)]
-                    df_ativacoes_dia_anterior = df_ativacoes[df_ativacoes['data_ativacao_beneficio'] == yesterday]
+
+                    if today.weekday() != 0:
+                        df_ativacoes_menos_ontem = df_ativacoes.loc[
+                        ~(df_ativacoes['data_ativacao_beneficio'].isin([yesterday, today]))
+                    ]
+                        df_ativacoes_dia_anterior = df_ativacoes[df_ativacoes['data_ativacao_beneficio'] == yesterday]
+                    else:
+                        df_ativacoes_menos_ontem = df_ativacoes.loc[
+                        (df_ativacoes['data_ativacao_beneficio']<friday)
+                    ]
+                        df_ativacoes_dia_anterior = df_ativacoes[df_ativacoes['data_ativacao_beneficio'].between(friday, yesterday)]
+
                     df_ativacoes_dia_anterior_tratado = self.board_status_treatment(df=df_ativacoes_dia_anterior, df_conf=df_conferencia)
                     df_ativacoes_atualizado = pd.concat([df_ativacoes_menos_ontem, df_ativacoes_dia_anterior_tratado])
                     
