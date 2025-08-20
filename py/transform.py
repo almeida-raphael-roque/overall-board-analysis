@@ -102,13 +102,14 @@ class Transform:
             yesterday = today - dt.timedelta(days=1)
             friday = today - dt.timedelta(days=3)
             df_final_ativacoes = pd.DataFrame()
+            #df_final_cancelamentos = pd.DataFrame()
 
             #TRATANDO A NOMENCLATURA DOS BENEFÍCIOS, ADICIONANDO COLUNA DE MIGRAÇÃO, FILTRANDO POR 'CASCO'/'TERCEIRO'
             try:
                 df_ativacoes['data_ativacao_beneficio'] = pd.to_datetime(df_ativacoes['data_ativacao_beneficio']).dt.date
                 df_ativacoes['beneficio'] = df_ativacoes['beneficio'].replace('REPARAÇÃO OU REPOSIÇÃO DO VEÍCULO', 'CASCO (VEÍCULO)').replace('REPARAÇÃO OU REPOSIÇÃO DO (SEMI)REBOQUE', 'CASCO (R/SR)').replace('REPARAÇÃO OU REPOSIÇÃO DO COMPLEMENTO', 'CASCO (COMPLEMENTO)')
                 df_ativacoes['migration_from'] = np.nan
-                df_ativacoes = df_ativacoes.loc[df_ativacoes['beneficio'].str.contains('(CASCO|TERCEIRO)', regex=True)]
+                df_ativacoes = df_ativacoes.loc[df_ativacoes['beneficio'].str.contains('(CASCO|TERCEIRO|Assistência a reparos)', regex=True, case = False)]
 
                 df_conferencia['beneficio'] = df_conferencia['beneficio'].replace('REPARAÇÃO OU REPOSIÇÃO DO VEÍCULO', 'CASCO (VEÍCULO)').replace('REPARAÇÃO OU REPOSIÇÃO DO (SEMI)REBOQUE', 'CASCO (R/SR)').replace('REPARAÇÃO OU REPOSIÇÃO DO COMPLEMENTO', 'CASCO (COMPLEMENTO)')
                 
