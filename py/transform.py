@@ -110,6 +110,7 @@ class Transform:
                 df_ativacoes['beneficio'] = df_ativacoes['beneficio'].replace('REPARAÇÃO OU REPOSIÇÃO DO VEÍCULO', 'CASCO (VEÍCULO)').replace('REPARAÇÃO OU REPOSIÇÃO DO (SEMI)REBOQUE', 'CASCO (R/SR)').replace('REPARAÇÃO OU REPOSIÇÃO DO COMPLEMENTO', 'CASCO (COMPLEMENTO)')
                 df_ativacoes['migration_from'] = np.nan
                 df_ativacoes = df_ativacoes.loc[df_ativacoes['beneficio'].str.contains('(CASCO|TERCEIRO|Assistência a reparos)', regex=True, case = False)]
+                
 
                 df_conferencia['beneficio'] = df_conferencia['beneficio'].replace('REPARAÇÃO OU REPOSIÇÃO DO VEÍCULO', 'CASCO (VEÍCULO)').replace('REPARAÇÃO OU REPOSIÇÃO DO (SEMI)REBOQUE', 'CASCO (R/SR)').replace('REPARAÇÃO OU REPOSIÇÃO DO COMPLEMENTO', 'CASCO (COMPLEMENTO)')
                 
