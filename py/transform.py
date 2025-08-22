@@ -162,7 +162,7 @@ class Transform:
                 
                 df_final_ativacoes = df_ativacoes_atualizado[[
                     'placa', 'chassi', 'id_placa', 'id_veiculo', 'id_carroceria', 'matricula', 'conjunto', 'unidade', 'consultor', 'status_beneficio', 
-                    'cliente', 'data', 'data_ativacao_beneficio', 'suporte', 'data_filtro', 'empresa', 'migration_from'
+                    'cliente', 'data_registro', 'data_ativacao_beneficio', 'suporte', 'data_filtro', 'empresa', 'migration_from'
                 ]]
                 df_final_ativacoes = df_final_ativacoes.drop_duplicates(subset='chassi') 
                 
@@ -186,7 +186,7 @@ class Transform:
                 df_final_ativacoes['consultor'] = df_final_ativacoes['consultor'].fillna('NULL')
                 df_final_ativacoes['status'] = df_final_ativacoes['status'].fillna('NULL')
                 df_final_ativacoes['cliente'] = df_final_ativacoes['cliente'].fillna('NULL')
-                df_final_ativacoes['data'] = df_final_ativacoes['data'].fillna(pd.Timestamp('1900-01-01'))
+                df_final_ativacoes['data_registro'] = df_final_ativacoes['data_registro'].fillna(pd.Timestamp('1900-01-01'))
                 df_final_ativacoes['data_ativacao'] = df_final_ativacoes['data_ativacao'].fillna(pd.Timestamp('1900-01-01'))
                 df_final_ativacoes['suporte'] = df_final_ativacoes['suporte'].fillna('NULL')
                 df_final_ativacoes['data_filtro'] = df_final_ativacoes['data_filtro'].fillna(pd.Timestamp('1900-01-01'))
